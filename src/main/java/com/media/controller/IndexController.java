@@ -119,7 +119,7 @@ public class IndexController {
 
     @OnError
     public void onError(Throwable t) {
-    	System.out.println(t.getMessage());
+    	t.printStackTrace();
     }
     
     @OnClose  
@@ -129,6 +129,12 @@ public class IndexController {
 	    	PersonalSessionStorage.delSessionById(session.getId());
     	}catch(Throwable e){
     		e.printStackTrace();
+    	}finally {
+    		try {
+				session.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
     	}
     }  
     

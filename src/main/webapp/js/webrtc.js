@@ -54,6 +54,7 @@
         	nowChannel.pc.onicecandidate = pc_icecandidate;
         	callbackMessage = callbackMessageImpl;
         	callbackRemoteVideo = callbackRemoteVideoImpl;
+        	nowChannel["isVideoAudio"] = false;//是否把本地视频或音频发送到了远方,关闭音频视频到时候会重新设置为false
         	return nowChannel;
         }
       	
@@ -150,9 +151,10 @@
                 		// 如果是一个offer，那么需要回复一个answer
                         if(json.event === "_offer") {
                         	sendSignallingHandle(webRtc.pc,"_answer",temp);
-                        	//如果本地开启了视频流,则向对方发送
-                        	if(localStream != null){
+                        	//如果本地开启了视频流,并且没有向远方发送过,则向对方发送
+                        	if(localStream != null && webRtc.isVideoAudio == false){
                         		openVideoAudioRemote([webRtc],true,true);
+                        		webRtc.isVideoAudio = true;
                         	}
                         }
                 	}
@@ -222,8 +224,12 @@
         			if(webRtcs[i].stream.getAudioTracks()[0]){
         				webRtcs[i].stream.getAudioTracks()[0].stop();
         			}
+        			if(webRtcs[i].stream.getTracks()[0]){
+        				webRtcs[i].stream.getTracks()[0].stop();
+        			}
         			webRtcs[i].pc.removeStream(webRtcs[i].stream);
         			webRtcs[i].stream = null;
+        			webRtcs[i].isVideoAudio = true;
         		}
     		}
         }
@@ -236,6 +242,9 @@
     			}
     			if(localStream.getAudioTracks()[0]){
     				localStream.getAudioTracks()[0].stop();
+    			}
+    			if(localStream.getTracks()[0]){
+    				localStream.getTracks()[0].stop();
     			}
     			localStream = null;
     		}

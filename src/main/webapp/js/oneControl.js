@@ -33,18 +33,30 @@ var callbackMessageOneImpl = function(msg){
 }
 //一对一接收到媒体流,处理回调实现
 var callbackRemoteVideoOneImpl = function(event){
-	$("#dialogForOne video[name='remote']").get(0).src = URL.createObjectURL(event.stream);
+	//$("#dialogForOne video[name='remote']").get(0).src = URL.createObjectURL(event.stream);
+    var video = $("#dialogForOne video[name='remote']").get(0);
+    video.srcObject = event.stream;
+    video.onloadedmetadata = function(e) {
+        video.play();
+    };
 }
 //一对一本地媒体流展示,实现回调
 var callbackLocalVideoOneImpl = function(stream){
-	var video = $("#dialogForOne video[name='video']").get(0); //获取到展现视频的标签
-    video.src = window.URL.createObjectURL(stream);//写入
+	//var video = $("#dialogForOne video[name='video']").get(0); //获取到展现视频的标签
+    //video.src = window.URL.createObjectURL(stream);//写入
+    var video = $("#dialogForOne video[name='video']")[0]; //获取到展现视频的标签
+    video.srcObject=stream;
+    video.onloadedmetadata = function(e) {
+        video.play();
+    };
 }
 $("#answerShow button[name='ready']").on("click",function(){//响应准备
 	var param = {key:'READY_FOR_ONE_RESPONSE',value:true};
 	socket.sendJson(param);
 	$("#answerShow").modal('hide');
 	$("#dialogForOne").modal('show');
+	$("#dialogForOne button[name='openVideo']").data("use",false);
+	$("#dialogForOne button[name='openAudio']").data("use",false);
 	oneWebRtc = createPcAndDataChannel(callbackMessageOneImpl,callbackRemoteVideoOneImpl);//创建webrtc对象
 });
 $("#answerShow button[name='close']").on("click",function(){//响应拒绝对话
@@ -56,11 +68,12 @@ $("#answerShow button[name='close']").on("click",function(){//响应拒绝对话
 $("#dialogForOne button[name='close']").on("click",function(){//关闭对话,并且通知对方关闭对话
 	closeChannel([oneWebRtc]);
 	closeLocalStream();
+	resetVideoButton();
 	var param = {key:'ONE_CHANNEL_CLOSE',value:true};
 	socket.sendJson(param);
 	$("#dialogForOne ul[name='bubbleDiv']").html("");
 	$("#dialogForOne").modal('hide');
-	resetVideoButton();
+	oneWebRtc = null;
 });
 
 //发送文件
@@ -89,7 +102,9 @@ $("#fileMsgForOne").on("change",function(){
 
 //发送文字消息
 var sendMessageOne = function(){
-	sendMessage([oneWebRtc.localChannel],"dialogForOne");
+	if(oneWebRtc != null){
+		sendMessage([oneWebRtc.localChannel],"dialogForOne");
+	}
 }
 
 //点击开启视频触发事件
@@ -103,7 +118,8 @@ $("#dialogForOne button[name='openVideo']").on("click",function(){
 		$(this).find(" > span").html("结束视频");
 		$("#dialogForOne button[name='openAudio']").hide();
 	}else{//关闭视频语音聊天
-		closeStream([oneWebRtc]);
+		closeRemoteChannelStream([oneWebRtc]);
+		closeLocalStream();
 		resetVideoButton();
 	}
 });
@@ -117,7 +133,8 @@ $("#dialogForOne button[name='openAudio']").on("click",function(){
 		$(this).find(" > span").html("结束语音");
 		$("#dialogForOne button[name='openVideo']").hide();
 	}else{//关闭语音聊天
-		closeStream([oneWebRtc]);
+		closeRemoteChannelStream([oneWebRtc]);
+		closeLocalStream();
 		resetVideoButton();
 	}
 });
@@ -147,6 +164,8 @@ var READY_FOR_ONE_RESPONSE = function(message){
 	if(value.status){//开始调用webrtc打开一对一对话
 		$("#dialogForOne label[name='name']").html(value.answerId);
 		$("#dialogForOne").modal('show');
+		$("#dialogForOne button[name='openVideo']").data("use",false);
+		$("#dialogForOne button[name='openAudio']").data("use",false);
 		oneWebRtc = createPcAndDataChannel(callbackMessageOneImpl,callbackRemoteVideoOneImpl);//创建webrtc对象
 		//发送offer信令
 		sendSignallingHandle(oneWebRtc.pc,"_offer");
@@ -165,8 +184,9 @@ var ONE_CHANNEL_CLOSE = function(message){
 	if(message.value){
 		closeChannel([oneWebRtc]);
 		closeLocalStream();
+		resetVideoButton();
 		$("#dialogForOne ul[name='bubbleDiv']").html("");
 		$("#dialogForOne").modal('hide');
-		resetVideoButton();
+		oneWebRtc = null;
 	}
 }
